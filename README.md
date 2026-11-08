@@ -4,6 +4,8 @@ GitHub Repository Manager is a cross-platform desktop application (Avalonia + .N
 
 It is designed as a production-oriented sample for modern .NET desktop architecture: MVVM, dependency injection, asynchronous workflows, clean separation between Core domain logic and GitHub API integration, and unit-testable business logic.
 
+![Avalonia App Screenshot](docs/images/avalonia-app.png)
+
 ## Features
 
 - GitHub CLI authentication integration (`gh auth token`) with safe process execution and timeout/cancellation support
