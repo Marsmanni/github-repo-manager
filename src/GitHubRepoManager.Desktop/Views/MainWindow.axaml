@@ -1,0 +1,79 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GitHubRepoManager.Desktop.ViewModels"
+        xmlns:converters="using:GitHubRepoManager.Desktop.Converters"
+        x:Class="GitHubRepoManager.Desktop.Views.MainWindow"
+        x:DataType="vm:MainWindowViewModel"
+        Width="1400"
+        Height="900"
+        Title="GitHub Repository Manager"
+        mc:Ignorable="d">
+  <Window.Resources>
+    <converters:ChangeStateToBrushConverter x:Key="ChangeStateToBrushConverter" />
+  </Window.Resources>
+
+  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16">
+    <Border Grid.Row="0" Padding="0,0,0,12">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button Content="Refresh repositories" Command="{Binding RefreshCommand}" ToolTip.Tip="Reload repositories from GitHub" />
+        <Button Content="Apply changes" Command="{Binding ApplyChangesCommand}" />
+        <Button Content="Discard selected" Command="{Binding DiscardSelectedChangesCommand}" />
+        <Button Content="Discard all" Command="{Binding DiscardAllChangesCommand}" />
+        <Button Content="Open on GitHub" Command="{Binding OpenSelectedRepositoryCommand}" />
+      </StackPanel>
+    </Border>
+
+    <Border Grid.Row="1" Padding="0,0,0,12">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBox Width="300" Watermark="Search name, description, topics, language" Text="{Binding SearchText}" />
+        <ComboBox Width="140" ItemsSource="{Binding VisibilityFilters}" SelectedItem="{Binding VisibilityFilter}" />
+        <CheckBox Content="Active only" IsChecked="{Binding ActiveOnly}" />
+        <CheckBox Content="Forks only" IsChecked="{Binding ForksOnly}" />
+        <CheckBox Content="Modified only" IsChecked="{Binding ModifiedOnly}" />
+      </StackPanel>
+    </Border>
+
+    <DataGrid Grid.Row="2"
+              x:Name="RepositoriesGrid"
+              SelectionChanged="OnSelectionChanged"
+              ItemsSource="{Binding FilteredRepositories}"
+              AutoGenerateColumns="False"
+              CanUserResizeColumns="True"
+              CanUserReorderColumns="True"
+              GridLinesVisibility="Horizontal"
+              IsReadOnly="False"
+              SelectionMode="Extended">
+      <DataGrid.Columns>
+        <DataGridTextColumn Header="Repository name" Binding="{Binding Name}" Width="200" />
+        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="300" />
+        <DataGridTemplateColumn Header="Visibility" Width="120">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate>
+              <TextBlock Text="{Binding Visibility}" />
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+          <DataGridTemplateColumn.CellEditingTemplate>
+            <DataTemplate>
+              <ComboBox ItemsSource="{Binding VisibilityOptions}" SelectedItem="{Binding Visibility}" />
+            </DataTemplate>
+          </DataGridTemplateColumn.CellEditingTemplate>
+        </DataGridTemplateColumn>
+        <DataGridTextColumn Header="Primary language" Binding="{Binding PrimaryLanguage}" IsReadOnly="True" Width="140" />
+        <DataGridTextColumn Header="Topics" Binding="{Binding TopicsText}" Width="220" />
+        <DataGridCheckBoxColumn Header="Archived" Binding="{Binding Archived}" Width="90" />
+        <DataGridTextColumn Header="Stars" Binding="{Binding Stars}" IsReadOnly="True" Width="80" />
+        <DataGridTextColumn Header="Last updated" Binding="{Binding LastUpdated}" IsReadOnly="True" Width="170" />
+        <DataGridTextColumn Header="Change status" Binding="{Binding ChangeStatus}" IsReadOnly="True" Width="120" />
+      </DataGrid.Columns>
+    </DataGrid>
+
+    <Border Grid.Row="3" Padding="0,10,0,0">
+      <DockPanel>
+        <TextBlock DockPanel.Dock="Left" Text="{Binding StatusText}" />
+        <TextBlock DockPanel.Dock="Right" Text="{Binding PendingChangesCount, StringFormat='Pending changes: {0}'}" />
+      </DockPanel>
+    </Border>
+  </Grid>
+</Window>

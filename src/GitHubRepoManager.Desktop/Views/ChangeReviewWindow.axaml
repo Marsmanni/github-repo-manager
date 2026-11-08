@@ -1,0 +1,29 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:vm="using:GitHubRepoManager.Desktop.ViewModels"
+        x:Class="GitHubRepoManager.Desktop.Views.ChangeReviewWindow"
+        Width="1000"
+        Height="650"
+        Title="Review pending changes"
+        mc:Ignorable="d">
+  <Grid RowDefinitions="*,Auto" Margin="16">
+    <DataGrid x:Name="ReviewGrid"
+              AutoGenerateColumns="False"
+              CanUserResizeColumns="True"
+              CanUserReorderColumns="True"
+              ItemsSource="{Binding Items}">
+      <DataGrid.Columns>
+        <DataGridCheckBoxColumn Header="Apply" Binding="{Binding Apply}" Width="70" />
+        <DataGridTextColumn Header="Repository" Binding="{Binding Repository.FullName}" Width="260" IsReadOnly="True" />
+        <DataGridTextColumn Header="Changes" Binding="{Binding Summary}" Width="*" IsReadOnly="True" />
+      </DataGrid.Columns>
+    </DataGrid>
+
+    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Spacing="8" Margin="0,12,0,0">
+      <Button Content="Cancel" Click="OnCancelClicked" />
+      <Button Content="Apply selected" Click="OnApplyClicked" />
+    </StackPanel>
+  </Grid>
+</Window>

@@ -1,0 +1,40 @@
+# Build output
+bin/
+obj/
+out/
+
+# .NET user-specific files
+*.user
+*.rsuser
+*.suo
+*.userprefs
+
+# NuGet
+*.nupkg
+*.snupkg
+packages/
+
+# Logs and coverage
+*.log
+TestResults/
+coverage/
+coverage.*
+
+# JetBrains Rider / IntelliJ
+.idea/
+
+# VS Code
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Visual Studio
+.vs/
+
+# macOS
+.DS_Store
+
+# Local app settings / secrets
+appsettings.Development.json
+secrets.json

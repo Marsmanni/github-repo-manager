@@ -1,0 +1,14 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "GitHubRepoManager Desktop",
+      "type": "coreclr",
+      "request": "launch",
+      "program": "${workspaceFolder}/src/GitHubRepoManager.Desktop/bin/Debug/net10.0/GitHubRepoManager.Desktop.dll",
+      "cwd": "${workspaceFolder}",
+      "preLaunchTask": "build",
+      "console": "integratedTerminal"
+    }
+  ]
+}

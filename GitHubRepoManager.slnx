@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/GitHubRepoManager.Core/GitHubRepoManager.Core.csproj" />
+    <Project Path="src/GitHubRepoManager.Desktop/GitHubRepoManager.Desktop.csproj" />
+    <Project Path="src/GitHubRepoManager.GitHub/GitHubRepoManager.GitHub.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/GitHubRepoManager.Tests/GitHubRepoManager.Tests.csproj" />
+  </Folder>
+</Solution>

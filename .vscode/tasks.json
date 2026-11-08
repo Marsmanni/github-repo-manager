@@ -1,0 +1,55 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "restore",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "restore",
+        "GitHubRepoManager.slnx"
+      ],
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "build",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "build",
+        "GitHubRepoManager.slnx",
+        "-v",
+        "minimal"
+      ],
+      "group": "build",
+      "dependsOn": "restore",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "test",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "test",
+        "GitHubRepoManager.slnx",
+        "-v",
+        "minimal"
+      ],
+      "group": "test",
+      "dependsOn": "build",
+      "problemMatcher": "$msCompile"
+    },
+    {
+      "label": "run-desktop",
+      "type": "process",
+      "command": "dotnet",
+      "args": [
+        "run",
+        "--project",
+        "src/GitHubRepoManager.Desktop/GitHubRepoManager.Desktop.csproj"
+      ],
+      "dependsOn": "build",
+      "problemMatcher": "$msCompile"
+    }
+  ]
+}
