@@ -76,6 +76,19 @@ public sealed class RepositoryApplyCoordinator(
                 }
             }
 
+            var hasNonArchiveUpdates = changedFields.Any(static f => f is not RepositoryField.Archived);
+            if (remote.Archived && state.Working.Archived && hasNonArchiveUpdates)
+            {
+                var archivedFailure = new RepositoryApplyResult(
+                    id,
+                    false,
+                    "Repository is archived and read-only. Unarchive it first to apply name/description/topic/visibility updates.",
+                    null);
+                changeTracker.SetStatus(id, RepositoryChangeState.Failed, archivedFailure.ErrorMessage);
+                results.Add(archivedFailure);
+                continue;
+            }
+
             var request = new RepositoryUpdateRequest(
                 id,
                 remote.Owner,

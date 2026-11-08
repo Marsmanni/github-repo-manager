@@ -204,6 +204,22 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
         RebuildWorking();
     }
 
-    private static string? NormalizeDescription(string input) =>
-        string.IsNullOrWhiteSpace(input) ? null : input;
+    private static string? NormalizeDescription(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return null;
+        }
+
+        var buffer = input
+            .Select(static c => char.IsControl(c) ? ' ' : c)
+            .ToArray();
+
+        var collapsed = string.Join(
+            ' ',
+            new string(buffer)
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+
+        return string.IsNullOrWhiteSpace(collapsed) ? null : collapsed;
+    }
 }

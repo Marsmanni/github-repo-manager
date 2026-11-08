@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Globalization;
 using System.Text;
 using Avalonia.Controls;
+using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -205,6 +207,44 @@ public sealed partial class MainWindowViewModel : ViewModelBase
 
         var script = BuildCloneAllScript(Repositories);
         await _dialogService.ShowCloneAllScriptAsync(OwnerWindow, script);
+    }
+
+    [RelayCommand]
+    public async Task ImportProposalCsvAsync()
+    {
+        if (OwnerWindow is null)
+        {
+            return;
+        }
+
+        if (Repositories.Count == 0)
+        {
+            StatusText = "No repositories loaded.";
+            return;
+        }
+
+        var files = await OwnerWindow.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
+        {
+            Title = "Import repository proposals CSV",
+            AllowMultiple = false,
+            FileTypeFilter =
+            [
+                new FilePickerFileType("CSV files")
+                {
+                    Patterns = ["*.csv"]
+                }
+            ]
+        });
+
+        if (files.Count == 0)
+        {
+            return;
+        }
+
+        var content = await ReadTextAsync(files[0]);
+        var result = ApplyProposalCsv(content);
+        ApplyFilters();
+        StatusText = $"Imported proposals: {result.Applied} updated, {result.Unmatched} unmatched rows.";
     }
 
     [RelayCommand]
@@ -451,5 +491,154 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         }
 
         return sb.ToString();
+    }
+
+    private async Task<string> ReadTextAsync(IStorageFile file)
+    {
+        await using var stream = await file.OpenReadAsync();
+        using var reader = new StreamReader(stream);
+        return await reader.ReadToEndAsync();
+    }
+
+    private (int Applied, int Unmatched) ApplyProposalCsv(string csv)
+    {
+        var rows = csv.Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (rows.Length < 2)
+        {
+            return (0, 0);
+        }
+
+        var headers = ParseCsvLine(rows[0]);
+        var normalized = headers
+            .Select((h, i) => new { Key = NormalizeHeader(h), Index = i })
+            .ToDictionary(static x => x.Key, static x => x.Index, StringComparer.OrdinalIgnoreCase);
+
+        var nameIndex = FindIndex(normalized, "name", "repo", "repository", "oldname");
+        var newNameIndex = FindIndex(normalized, "proposednewname", "proposed_name", "newname");
+        var descriptionIndex = FindIndex(normalized, "proposeddescription", "description", "newdescription");
+        var topicsIndex = FindIndex(normalized, "improvedtopics", "topics", "newtopics");
+
+        if (nameIndex < 0)
+        {
+            return (0, rows.Length - 1);
+        }
+
+        var byName = Repositories.ToDictionary(static r => r.Name, StringComparer.OrdinalIgnoreCase);
+        var applied = 0;
+        var unmatched = 0;
+
+        for (var i = 1; i < rows.Length; i++)
+        {
+            var fields = ParseCsvLine(rows[i]);
+            var sourceName = GetField(fields, nameIndex);
+            if (string.IsNullOrWhiteSpace(sourceName))
+            {
+                continue;
+            }
+
+            if (!byName.TryGetValue(sourceName.Trim(), out var row))
+            {
+                unmatched++;
+                continue;
+            }
+
+            var changed = false;
+            var proposedName = GetField(fields, newNameIndex);
+            if (!string.IsNullOrWhiteSpace(proposedName) && !string.Equals(row.Name, proposedName.Trim(), StringComparison.Ordinal))
+            {
+                row.Name = proposedName.Trim();
+                changed = true;
+            }
+
+            var proposedDescription = GetField(fields, descriptionIndex);
+            if (!string.IsNullOrWhiteSpace(proposedDescription) && !string.Equals(row.Description, proposedDescription.Trim(), StringComparison.Ordinal))
+            {
+                row.Description = proposedDescription.Trim();
+                changed = true;
+            }
+
+            var proposedTopics = GetField(fields, topicsIndex);
+            if (!string.IsNullOrWhiteSpace(proposedTopics))
+            {
+                var topics = proposedTopics
+                    .Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)
+                    .Distinct(StringComparer.OrdinalIgnoreCase)
+                    .ToList();
+                var joined = string.Join(", ", topics);
+                if (!string.Equals(row.TopicsText, joined, StringComparison.Ordinal))
+                {
+                    row.TopicsText = joined;
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                applied++;
+            }
+        }
+
+        return (applied, unmatched);
+    }
+
+    private static int FindIndex(IReadOnlyDictionary<string, int> headers, params string[] keys)
+    {
+        foreach (var key in keys)
+        {
+            if (headers.TryGetValue(NormalizeHeader(key), out var index))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
+    private static string GetField(IReadOnlyList<string> fields, int index)
+        => index >= 0 && index < fields.Count ? fields[index] : string.Empty;
+
+    private static string NormalizeHeader(string value)
+    {
+        var chars = value
+            .ToLower(CultureInfo.InvariantCulture)
+            .Where(static c => char.IsLetterOrDigit(c))
+            .ToArray();
+        return new string(chars);
+    }
+
+    private static List<string> ParseCsvLine(string line)
+    {
+        var result = new List<string>();
+        var current = new StringBuilder();
+        var inQuotes = false;
+
+        for (var i = 0; i < line.Length; i++)
+        {
+            var c = line[i];
+            if (c == '"')
+            {
+                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
+                {
+                    current.Append('"');
+                    i++;
+                    continue;
+                }
+
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (c == ',' && !inQuotes)
+            {
+                result.Add(current.ToString());
+                current.Clear();
+                continue;
+            }
+
+            current.Append(c);
+        }
+
+        result.Add(current.ToString());
+        return result;
     }
 }
