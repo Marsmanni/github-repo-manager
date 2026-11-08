@@ -17,5 +17,7 @@ public interface IUserDialogService
         Window owner,
         IReadOnlyList<RepositoryRowViewModel> candidates);
 
+    Task ShowCloneAllScriptAsync(Window owner, string script);
+
     Task ShowErrorAsync(Window owner, string title, string message);
 }

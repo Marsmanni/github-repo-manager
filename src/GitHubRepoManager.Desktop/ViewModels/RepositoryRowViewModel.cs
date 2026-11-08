@@ -10,6 +10,7 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
     private readonly ITopicNormalizer _topicNormalizer;
     private RepositoryRecord _baselineRecord;
     private EditableRepositorySnapshot _working;
+    private bool _isLoadingSnapshot;
 
     public RepositoryRowViewModel(
         RepositoryRecord record,
@@ -20,12 +21,7 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
         _nameValidator = nameValidator;
         _topicNormalizer = topicNormalizer;
         _working = record.ToEditableSnapshot();
-
-        Name = _working.Name;
-        Description = _working.Description ?? string.Empty;
-        TopicsText = string.Join(", ", _working.Topics);
-        Visibility = _working.Visibility;
-        Archived = _working.Archived;
+        LoadFromSnapshot(_working);
     }
 
     public long Id => _baselineRecord.Id;
@@ -47,12 +43,17 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
         {
             if (SetProperty(ref _name, value))
             {
-                RebuildWorking();
+                if (!_isLoadingSnapshot)
+                {
+                    RebuildWorking();
+                }
             }
         }
     }
 
     private string _description = string.Empty;
+    private string _descriptionDisplay = "—";
+
     public string Description
     {
         get => _description;
@@ -60,9 +61,19 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
         {
             if (SetProperty(ref _description, value))
             {
-                RebuildWorking();
+                DescriptionDisplay = string.IsNullOrWhiteSpace(value) ? "—" : value;
+                if (!_isLoadingSnapshot)
+                {
+                    RebuildWorking();
+                }
             }
         }
+    }
+
+    public string DescriptionDisplay
+    {
+        get => _descriptionDisplay;
+        private set => SetProperty(ref _descriptionDisplay, value);
     }
 
     private string _topicsText = string.Empty;
@@ -73,7 +84,10 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
         {
             if (SetProperty(ref _topicsText, value))
             {
-                RebuildWorking();
+                if (!_isLoadingSnapshot)
+                {
+                    RebuildWorking();
+                }
             }
         }
     }
@@ -86,7 +100,10 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
         {
             if (SetProperty(ref _visibility, value))
             {
-                RebuildWorking();
+                if (!_isLoadingSnapshot)
+                {
+                    RebuildWorking();
+                }
             }
         }
     }
@@ -99,7 +116,10 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
         {
             if (SetProperty(ref _archived, value))
             {
-                RebuildWorking();
+                if (!_isLoadingSnapshot)
+                {
+                    RebuildWorking();
+                }
             }
         }
     }
@@ -126,23 +146,13 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
     public void AcceptRemote(RepositoryRecord updatedRecord)
     {
         _baselineRecord = updatedRecord;
-        Name = updatedRecord.Name;
-        Description = updatedRecord.Description ?? string.Empty;
-        TopicsText = string.Join(", ", updatedRecord.Topics);
-        Visibility = updatedRecord.Visibility;
-        Archived = updatedRecord.Archived;
+        LoadFromSnapshot(updatedRecord.ToEditableSnapshot());
         ChangeState = RepositoryChangeState.Unchanged;
-        RebuildWorking();
     }
 
     public void DiscardChanges()
     {
-        Name = _baselineRecord.Name;
-        Description = _baselineRecord.Description ?? string.Empty;
-        TopicsText = string.Join(", ", _baselineRecord.Topics);
-        Visibility = _baselineRecord.Visibility;
-        Archived = _baselineRecord.Archived;
-        RebuildWorking();
+        LoadFromSnapshot(_baselineRecord.ToEditableSnapshot());
     }
 
     public IReadOnlyList<RepositoryPropertyChange> GetChanges() =>
@@ -173,6 +183,25 @@ public sealed partial class RepositoryRowViewModel : ViewModelBase
 
         OnPropertyChanged(nameof(IsModified));
         OnPropertyChanged(nameof(ChangeStatus));
+    }
+
+    private void LoadFromSnapshot(EditableRepositorySnapshot snapshot)
+    {
+        _isLoadingSnapshot = true;
+        try
+        {
+            Name = snapshot.Name;
+            Description = snapshot.Description ?? string.Empty;
+            TopicsText = string.Join(", ", snapshot.Topics);
+            Visibility = snapshot.Visibility;
+            Archived = snapshot.Archived;
+        }
+        finally
+        {
+            _isLoadingSnapshot = false;
+        }
+
+        RebuildWorking();
     }
 
     private static string? NormalizeDescription(string input) =>

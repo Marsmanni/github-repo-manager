@@ -11,7 +11,7 @@ public static class RepositoryMapper
         var visibility = repository.Visibility switch
         {
             Octokit.RepositoryVisibility.Internal => CoreVisibility.Internal,
-            Octokit.RepositoryVisibility.Private => CoreVisibility.Private,
+            _ when repository.Private => CoreVisibility.Private,
             _ => CoreVisibility.Public
         };
 

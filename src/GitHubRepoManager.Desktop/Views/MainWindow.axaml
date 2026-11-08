@@ -17,11 +17,42 @@
   <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="16">
     <Border Grid.Row="0" Padding="0,0,0,12">
       <StackPanel Orientation="Horizontal" Spacing="8">
-        <Button Content="Refresh repositories" Command="{Binding RefreshCommand}" ToolTip.Tip="Reload repositories from GitHub" />
-        <Button Content="Apply changes" Command="{Binding ApplyChangesCommand}" />
-        <Button Content="Discard selected" Command="{Binding DiscardSelectedChangesCommand}" />
-        <Button Content="Discard all" Command="{Binding DiscardAllChangesCommand}" />
-        <Button Content="Open on GitHub" Command="{Binding OpenSelectedRepositoryCommand}" />
+        <Button Command="{Binding RefreshCommand}" ToolTip.Tip="Reload repositories from GitHub">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="14" Height="14" Data="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6a6 6 0 0 1-6 6 6 6 0 0 1-5.65-4H4.26A8 8 0 0 0 12 20a8 8 0 0 0 0-16z" />
+            <TextBlock Text="Refresh repositories" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding ApplyChangesCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="14" Height="14" Data="M9 16.17 4.83 12 3.41 13.41 9 19l12-12-1.41-1.41z" />
+            <TextBlock Text="Apply changes" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding DiscardSelectedChangesCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="14" Height="14" Data="M16 9v10H8V9h8m-1.5-6h-5L8 4H5v2h14V4h-3l-1.5-1z" />
+            <TextBlock Text="Discard selected" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding DiscardAllChangesCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="14" Height="14" Data="M6 7h12v2H6V7zm0 4h12v2H6v-2zm0 4h8v2H6v-2zM4 5h16v14H4z" />
+            <TextBlock Text="Discard all" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding OpenSelectedRepositoryCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="14" Height="14" Data="M14 3h7v7h-2V6.41l-9.29 9.3-1.42-1.42 9.3-9.29H14V3zM5 5h7v2H7v10h10v-5h2v7H5V5z" />
+            <TextBlock Text="Open on GitHub" />
+          </StackPanel>
+        </Button>
+        <Button Command="{Binding ShowCloneAllScriptCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="14" Height="14" Data="M10 3H5a2 2 0 0 0-2 2v14h2V5h5V3zm4 4H9a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h9a2 2 0 0 0 2-2V11l-6-4zm0 2.5 3.5 2.5H14V9.5z" />
+            <TextBlock Text="Clone all script" />
+          </StackPanel>
+        </Button>
       </StackPanel>
     </Border>
 
@@ -32,6 +63,12 @@
         <CheckBox Content="Active only" IsChecked="{Binding ActiveOnly}" />
         <CheckBox Content="Forks only" IsChecked="{Binding ForksOnly}" />
         <CheckBox Content="Modified only" IsChecked="{Binding ModifiedOnly}" />
+        <Button Command="{Binding ResetFiltersCommand}">
+          <StackPanel Orientation="Horizontal" Spacing="6">
+            <PathIcon Width="14" Height="14" Data="M3 5h18v2H3V5zm4 6h10v2H7v-2zm3 6h4v2h-4v-2z" />
+            <TextBlock Text="Reset filters" />
+          </StackPanel>
+        </Button>
       </StackPanel>
     </Border>
 
@@ -47,15 +84,29 @@
               SelectionMode="Extended">
       <DataGrid.Columns>
         <DataGridTextColumn Header="Repository name" Binding="{Binding Name}" Width="200" />
-        <DataGridTextColumn Header="Description" Binding="{Binding Description}" Width="300" />
+        <DataGridTemplateColumn Header="Description" Width="300" MinWidth="220">
+          <DataGridTemplateColumn.CellTemplate>
+            <DataTemplate x:DataType="vm:RepositoryRowViewModel">
+              <TextBlock Text="{Binding DescriptionDisplay}"
+                         ToolTip.Tip="{Binding Description}"
+                         Foreground="{DynamicResource ThemeForegroundBrush}"
+                         TextTrimming="CharacterEllipsis" />
+            </DataTemplate>
+          </DataGridTemplateColumn.CellTemplate>
+          <DataGridTemplateColumn.CellEditingTemplate>
+            <DataTemplate x:DataType="vm:RepositoryRowViewModel">
+              <TextBox Text="{Binding Description}" />
+            </DataTemplate>
+          </DataGridTemplateColumn.CellEditingTemplate>
+        </DataGridTemplateColumn>
         <DataGridTemplateColumn Header="Visibility" Width="120">
           <DataGridTemplateColumn.CellTemplate>
-            <DataTemplate>
+            <DataTemplate x:DataType="vm:RepositoryRowViewModel">
               <TextBlock Text="{Binding Visibility}" />
             </DataTemplate>
           </DataGridTemplateColumn.CellTemplate>
           <DataGridTemplateColumn.CellEditingTemplate>
-            <DataTemplate>
+            <DataTemplate x:DataType="vm:RepositoryRowViewModel">
               <ComboBox ItemsSource="{Binding VisibilityOptions}" SelectedItem="{Binding Visibility}" />
             </DataTemplate>
           </DataGridTemplateColumn.CellEditingTemplate>
@@ -72,7 +123,10 @@
     <Border Grid.Row="3" Padding="0,10,0,0">
       <DockPanel>
         <TextBlock DockPanel.Dock="Left" Text="{Binding StatusText}" />
-        <TextBlock DockPanel.Dock="Right" Text="{Binding PendingChangesCount, StringFormat='Pending changes: {0}'}" />
+        <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" Spacing="12">
+          <TextBlock Text="{Binding VisibleRepositoriesCount, StringFormat='Shown: {0}'}" />
+          <TextBlock Text="{Binding PendingChangesCount, StringFormat='Pending changes: {0}'}" />
+        </StackPanel>
       </DockPanel>
     </Border>
   </Grid>

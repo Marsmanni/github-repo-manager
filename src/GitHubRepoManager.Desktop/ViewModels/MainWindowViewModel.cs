@@ -1,5 +1,7 @@
 using System.Collections.ObjectModel;
+using System.Text;
 using Avalonia.Controls;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using GitHubRepoManager.Core.Interfaces;
@@ -69,6 +71,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     public double WindowHeight { get; set; } = 900;
 
     public int PendingChangesCount => Repositories.Count(static r => r.IsModified);
+    public int VisibleRepositoriesCount => FilteredRepositories.Count;
 
     public IReadOnlyList<string> VisibilityFilters { get; } = ["All", "Public", "Private", "Internal"];
 
@@ -81,58 +84,68 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     [RelayCommand]
     public async Task InitializeAsync()
     {
-        var settings = await _settingsService.LoadAsync(CancellationToken.None).ConfigureAwait(false);
-        SearchText = settings.SearchText;
-        VisibilityFilter = settings.VisibilityFilter;
+        var settings = await _settingsService.LoadAsync(CancellationToken.None);
+        SearchText = settings.SearchText?.Trim() ?? string.Empty;
+        VisibilityFilter = VisibilityFilters.Contains(settings.VisibilityFilter, StringComparer.OrdinalIgnoreCase)
+            ? settings.VisibilityFilter
+            : "All";
         ModifiedOnly = settings.ModifiedOnlyFilter;
         WindowWidth = settings.WindowWidth;
         WindowHeight = settings.WindowHeight;
-        await RefreshAsync().ConfigureAwait(false);
+        await RefreshAsync();
     }
 
     [RelayCommand]
     public async Task RefreshAsync()
     {
-        IsBusy = true;
-        StatusText = "Loading repositories...";
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            IsBusy = true;
+            StatusText = "Loading repositories...";
+        });
 
         try
         {
-            var repositories = await _repositoryService.GetOwnedRepositoriesAsync(CancellationToken.None).ConfigureAwait(false);
-            Repositories.Clear();
-            _indexById.Clear();
-
-            foreach (var repository in repositories)
+            var repositories = await _repositoryService.GetOwnedRepositoriesAsync(CancellationToken.None);
+            await Dispatcher.UIThread.InvokeAsync(() =>
             {
-                var row = new RepositoryRowViewModel(repository, _nameValidator, _topicNormalizer);
-                row.PropertyChanged += (_, e) =>
-                {
-                    if (e.PropertyName is nameof(RepositoryRowViewModel.ChangeState))
-                    {
-                        OnPropertyChanged(nameof(PendingChangesCount));
-                    }
-                };
-                Repositories.Add(row);
-                _indexById[row.Id] = row;
-            }
+                Repositories.Clear();
+                _indexById.Clear();
 
-            ApplyFilters();
-            StatusText = repositories.Count == 0
-                ? "No owned repositories found."
-                : $"Loaded {repositories.Count} repositories.";
+                foreach (var repository in repositories)
+                {
+                    var row = new RepositoryRowViewModel(repository, _nameValidator, _topicNormalizer);
+                    row.PropertyChanged += (_, e) =>
+                    {
+                        if (e.PropertyName is nameof(RepositoryRowViewModel.ChangeState))
+                        {
+                            OnPropertyChanged(nameof(PendingChangesCount));
+                        }
+                    };
+                    Repositories.Add(row);
+                    _indexById[row.Id] = row;
+                }
+
+                ApplyFilters();
+                StatusText = repositories.Count == 0
+                    ? "No owned repositories found."
+                    : FilteredRepositories.Count == repositories.Count
+                        ? $"Loaded {repositories.Count} repositories."
+                        : $"Loaded {repositories.Count} repositories ({FilteredRepositories.Count} shown by current filters).";
+            });
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Failed to refresh repositories.");
-            StatusText = "Failed to load repositories.";
+            await Dispatcher.UIThread.InvokeAsync(() => StatusText = "Failed to load repositories.");
             if (OwnerWindow is not null)
             {
-                await _dialogService.ShowErrorAsync(OwnerWindow, "Load failed", ex.Message).ConfigureAwait(false);
+                await _dialogService.ShowErrorAsync(OwnerWindow, "Load failed", ex.Message);
             }
         }
         finally
         {
-            IsBusy = false;
+            await Dispatcher.UIThread.InvokeAsync(() => IsBusy = false);
         }
     }
 
@@ -163,6 +176,38 @@ public sealed partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
+    public void ResetFilters()
+    {
+        SearchText = string.Empty;
+        VisibilityFilter = "All";
+        ActiveOnly = false;
+        ForksOnly = false;
+        ModifiedOnly = false;
+
+        StatusText = Repositories.Count == 0
+            ? "Filters reset."
+            : $"Filters reset. Showing {FilteredRepositories.Count} of {Repositories.Count} repositories.";
+    }
+
+    [RelayCommand]
+    public async Task ShowCloneAllScriptAsync()
+    {
+        if (OwnerWindow is null)
+        {
+            return;
+        }
+
+        if (Repositories.Count == 0)
+        {
+            StatusText = "No repositories loaded.";
+            return;
+        }
+
+        var script = BuildCloneAllScript(Repositories);
+        await _dialogService.ShowCloneAllScriptAsync(OwnerWindow, script);
+    }
+
+    [RelayCommand]
     public async Task ApplyChangesAsync()
     {
         if (OwnerWindow is null)
@@ -185,12 +230,11 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             await _dialogService.ShowErrorAsync(
                     OwnerWindow,
                     "Duplicate target names",
-                    "Duplicate repository names were detected for the same owner. Resolve duplicates before applying.")
-                .ConfigureAwait(false);
+                    "Duplicate repository names were detected for the same owner. Resolve duplicates before applying.");
             return;
         }
 
-        var selected = await _dialogService.ShowReviewChangesAsync(OwnerWindow, candidates).ConfigureAwait(false);
+        var selected = await _dialogService.ShowReviewChangesAsync(OwnerWindow, candidates);
         if (selected is null || selected.Count == 0)
         {
             return;
@@ -203,8 +247,7 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                     OwnerWindow,
                     "Sensitive operations",
                     "Visibility and archive changes can impact access, pages, forks, and integrations. Continue?",
-                    "Apply changes")
-                .ConfigureAwait(false);
+                    "Apply changes");
 
             if (!confirmed)
             {
@@ -255,10 +298,9 @@ public sealed partial class MainWindowViewModel : ViewModelBase
                 async (id, conflicts) =>
                 {
                     var repo = _indexById[id];
-                    return await _dialogService.ResolveConflictAsync(OwnerWindow, repo.FullName, conflicts).ConfigureAwait(false);
+                    return await _dialogService.ResolveConflictAsync(OwnerWindow, repo.FullName, conflicts);
                 },
-                CancellationToken.None)
-            .ConfigureAwait(false);
+                CancellationToken.None);
 
         foreach (var result in applyResult.Results)
         {
@@ -325,17 +367,25 @@ public sealed partial class MainWindowViewModel : ViewModelBase
             WindowWidth = WindowWidth,
             WindowHeight = WindowHeight
         };
-        await _settingsService.SaveAsync(settings, CancellationToken.None).ConfigureAwait(false);
+        await _settingsService.SaveAsync(settings, CancellationToken.None);
     }
 
     private void ApplyFilters()
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Post(ApplyFilters);
+            return;
+        }
+
         var filtered = Repositories.Where(MatchesFilter).ToList();
         FilteredRepositories.Clear();
         foreach (var row in filtered)
         {
             FilteredRepositories.Add(row);
         }
+
+        OnPropertyChanged(nameof(VisibleRepositoriesCount));
     }
 
     private bool MatchesFilter(RepositoryRowViewModel row)
@@ -377,4 +427,29 @@ public sealed partial class MainWindowViewModel : ViewModelBase
         => rows.Any(static r =>
             r.GetChangedFields().Contains(RepositoryField.Visibility)
             || r.GetChangedFields().Contains(RepositoryField.Archived));
+
+    private static string BuildCloneAllScript(IEnumerable<RepositoryRowViewModel> repositories)
+    {
+        var lines = repositories
+            .Select(static r => r.FullName)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .OrderBy(static fullName => fullName, StringComparer.OrdinalIgnoreCase)
+            .Select(static fullName => $"git clone https://github.com/{fullName}.git")
+            .ToList();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("#!/usr/bin/env bash");
+        sb.AppendLine("set -euo pipefail");
+        sb.AppendLine();
+        sb.AppendLine("# Clone all owned repositories");
+        sb.AppendLine("mkdir -p github-repos");
+        sb.AppendLine("cd github-repos");
+        sb.AppendLine();
+        foreach (var line in lines)
+        {
+            sb.AppendLine(line);
+        }
+
+        return sb.ToString();
+    }
 }

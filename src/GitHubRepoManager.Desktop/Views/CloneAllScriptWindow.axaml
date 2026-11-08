@@ -1,0 +1,28 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        x:Class="GitHubRepoManager.Desktop.Views.CloneAllScriptWindow"
+        Width="980"
+        Height="700"
+        Title="Clone all script"
+        WindowStartupLocation="CenterOwner"
+        mc:Ignorable="d">
+  <Grid RowDefinitions="Auto,*,Auto" Margin="16">
+    <TextBlock Text="Run this script in a terminal to clone all loaded repositories."
+               Margin="0,0,0,10" />
+
+    <TextBox Grid.Row="1"
+             Text="{Binding Script}"
+             IsReadOnly="True"
+             AcceptsReturn="True"
+             TextWrapping="NoWrap"
+             ScrollViewer.HorizontalScrollBarVisibility="Auto"
+             ScrollViewer.VerticalScrollBarVisibility="Auto"
+             FontFamily="Menlo, Consolas, monospace" />
+
+    <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
+      <Button Content="Close" Click="OnCloseClicked" />
+    </StackPanel>
+  </Grid>
+</Window>

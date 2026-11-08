@@ -2,6 +2,7 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Threading;
 using GitHubRepoManager.Core.Models;
 using GitHubRepoManager.Desktop.ViewModels;
 using GitHubRepoManager.Desktop.Views;
@@ -17,8 +18,7 @@ public sealed class UserDialogService : IUserDialogService
                 title,
                 message,
                 [confirmText, cancelText],
-                0)
-            .ConfigureAwait(false);
+                0);
 
         return result == 0;
     }
@@ -37,8 +37,7 @@ public sealed class UserDialogService : IUserDialogService
                 $"Conflict in {repositoryName}",
                 $"Conflicts were detected:\n{lines}\n\nHow do you want to continue?",
                 ["Keep local value", "Keep remote value", "Cancel"],
-                0)
-            .ConfigureAwait(false);
+                0);
 
         return selection switch
         {
@@ -60,10 +59,30 @@ public sealed class UserDialogService : IUserDialogService
             })
             .ToList();
 
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            return await Dispatcher.UIThread.InvokeAsync(
+                () => ShowReviewChangesAsync(owner, candidates));
+        }
+
         var reviewWindow = new ChangeReviewWindow();
         reviewWindow.SetItems(items);
-        var accepted = await reviewWindow.ShowDialog<bool>(owner).ConfigureAwait(false);
+        var accepted = await reviewWindow.ShowDialog<bool>(owner);
         return accepted ? reviewWindow.SelectedRepositories : null;
+    }
+
+    public async Task ShowCloneAllScriptAsync(Window owner, string script)
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            await Dispatcher.UIThread.InvokeAsync(
+                () => ShowCloneAllScriptAsync(owner, script));
+            return;
+        }
+
+        var window = new CloneAllScriptWindow();
+        window.SetScript(script);
+        await window.ShowDialog(owner);
     }
 
     public Task ShowErrorAsync(Window owner, string title, string message)
@@ -84,6 +103,12 @@ public sealed class UserDialogService : IUserDialogService
         IReadOnlyList<string> buttons,
         int defaultButtonIndex)
     {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            return await Dispatcher.UIThread.InvokeAsync(
+                () => ShowChoiceDialogAsync(owner, title, message, buttons, defaultButtonIndex));
+        }
+
         var tcs = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
         var window = new Window
         {
@@ -150,6 +175,6 @@ public sealed class UserDialogService : IUserDialogService
         };
 
         _ = window.ShowDialog(owner);
-        return await tcs.Task.ConfigureAwait(false);
+        return await tcs.Task;
     }
 }
