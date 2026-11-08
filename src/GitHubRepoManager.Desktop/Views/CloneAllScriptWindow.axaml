@@ -5,6 +5,7 @@
         x:Class="GitHubRepoManager.Desktop.Views.CloneAllScriptWindow"
         Width="980"
         Height="700"
+        Icon="avares://GitHubRepoManager.Desktop/Assets/app-icon.png"
         Title="Clone all script"
         WindowStartupLocation="CenterOwner"
         mc:Ignorable="d">

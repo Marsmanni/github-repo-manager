@@ -6,6 +6,7 @@
         x:Class="GitHubRepoManager.Desktop.Views.ChangeReviewWindow"
         Width="1000"
         Height="650"
+        Icon="avares://GitHubRepoManager.Desktop/Assets/app-icon.png"
         Title="Review pending changes"
         mc:Ignorable="d">
   <Grid RowDefinitions="*,Auto" Margin="16">
